@@ -1,18 +1,44 @@
 import './style.css'
 
-const differences = [
-  { id: 1, x: 71, y: 23, label: '우측 상단 끊어진 융선', points: 50 },
-  { id: 2, x: 75, y: 53, label: '우측 중간 변형 융선', points: 50 },
+const stages = [
+  {
+    id: 1,
+    title: '지문 감정 1단계',
+    originalImage: '/original-fingerprint01.png',
+    compareImage: '/compare-fingerprint01.png',
+    duration: 20,
+    successLabel: '1단계 종료',
+    differences: [
+      { id: 1, x: 71, y: 23, label: '우측 상단 끊어진 융선', points: 50 },
+      { id: 2, x: 75, y: 53, label: '우측 중간 변형 융선', points: 50 },
+    ],
+  },
+  {
+    id: 2,
+    title: '지문 감정 2단계',
+    originalImage: '/original-fingerprint02.png',
+    compareImage: '/compare-fingerprint02.png',
+    duration: 60,
+    successLabel: '전체 게임 종료',
+    differences: [
+      { id: 1, x: 54, y: 10, label: '상단 중앙 끊어진 융선', points: 20 },
+      { id: 2, x: 31, y: 24, label: '좌측 상단 교차 융선', points: 20 },
+      { id: 3, x: 70, y: 52, label: '우측 중간 끊어진 융선', points: 20 },
+      { id: 4, x: 31, y: 64, label: '좌측 하단 끊어진 융선', points: 20 },
+      { id: 5, x: 50, y: 87, label: '하단 중앙 끊어진 융선', points: 20 },
+    ],
+  },
 ]
 
-const GAME_DURATION = 20
-
+let currentStageIndex = 0
+let stageScores = Array(stages.length).fill(0)
 let foundIds = new Set()
 let score = 0
-let timeLeft = GAME_DURATION
+let timeLeft = stages[0].duration
 let wrongCount = 0
 let timerId = null
 let isGameActive = false
+let isStageComplete = false
 let audioContext = null
 
 const app = document.querySelector('#app')
@@ -72,7 +98,7 @@ app.innerHTML = `
       <div class="status-bar" aria-label="게임 진행 상태">
         <div class="status-item">
           <span>남아 있는 다른 특징점</span>
-          <strong id="remainingCount">${differences.length}</strong>
+          <strong id="remainingCount">${stages[0].differences.length}</strong>
         </div>
         <div class="status-item">
           <span>점수</span>
@@ -80,13 +106,13 @@ app.innerHTML = `
         </div>
         <div class="status-item muted">
           <span>타이머</span>
-          <strong id="timerCount">${GAME_DURATION}초</strong>
+          <strong id="timerCount">${stages[0].duration}초</strong>
         </div>
       </div>
 
       <div class="workspace-grid">
         <aside class="mission-card">
-          <p class="panel-label">지문 감정 1단계</p>
+          <p class="panel-label" id="stageTitle">지문 감정 1단계</p>
           <h2>비교 지문에서 변형 지점을 표시하세요.</h2>
           <ul>
             <li>원본 지문과 비교 지문을 차례로 대조합니다.</li>
@@ -97,21 +123,14 @@ app.innerHTML = `
 
         <div class="fingerprint-board" aria-label="지문 비교 영역">
           <div class="print-card original-print">
-            <img src="/original-fingerprint01.png" alt="원본 지문" class="fingerprint-image">
+            <img src="${stages[0].originalImage}" alt="원본 지문" class="fingerprint-image" id="originalImage">
             <span class="print-label">원본 지문</span>
           </div>
 
           <div class="print-card compare-print" id="comparePrint">
-            <img src="/compare-fingerprint01.png" alt="비교 지문" class="fingerprint-image">
+            <img src="${stages[0].compareImage}" alt="비교 지문" class="fingerprint-image" id="compareImage">
             <span class="print-label">비교 지문</span>
-            ${differences.map((item) => `
-              <button
-                class="difference-spot"
-                style="left: ${item.x}%; top: ${item.y}%;"
-                data-id="${item.id}"
-                aria-label="${item.label}"
-              ></button>
-            `).join('')}
+            <div class="difference-spots-layer" id="spotsLayer"></div>
           </div>
         </div>
       </div>
@@ -122,6 +141,45 @@ app.innerHTML = `
           <span class="stage-complete-badge" id="stageCompleteBadge" hidden>1단계 종료</span>
           <button id="resetButton" class="ghost-button" type="button">다시 시작</button>
           <button id="nextButton" class="ghost-button" type="button">다음 게임</button>
+        </div>
+      </div>
+
+      <footer class="police-tape game-police-tape" aria-hidden="true">
+        <div class="police-tape-track">
+          ${Array.from({ length: 6 }).map(() => `
+            <span class="police-tape-item">
+              <img src="/chamsuri-black.png" alt="" class="police-tape-mark">
+              <span>출입금지 POLICE 수사중</span>
+            </span>
+          `).join('')}
+        </div>
+      </footer>
+    </section>
+
+    <section class="final-screen" id="finalScreen" hidden>
+      <div class="final-card" aria-live="polite">
+        <p class="final-kicker">전체 게임 종료</p>
+        <h2>최종 평가</h2>
+        <p class="final-result-status" id="finalResultStatus">성공</p>
+        <p class="final-failure-reason" id="finalFailureReason" hidden>실패 사유: -</p>
+        <div class="final-score-grid">
+          <div class="final-score-item">
+            <span>1단계 점수</span>
+            <strong id="finalStageOneScore">0점</strong>
+          </div>
+          <div class="final-score-item">
+            <span>2단계 점수</span>
+            <strong id="finalStageTwoScore">0점</strong>
+          </div>
+          <div class="final-score-item total">
+            <span>전체 점수</span>
+            <strong id="finalTotalScore">0점</strong>
+          </div>
+        </div>
+        <p class="final-evaluation" id="finalEvaluation">평가: -</p>
+        <div class="final-actions">
+          <button id="finalHomeButton" class="ghost-button" type="button">처음으로</button>
+          <button id="finalRestartButton" class="ghost-button" type="button">다시 시작</button>
         </div>
       </div>
 
@@ -149,47 +207,25 @@ const message = document.querySelector('#message')
 const stageCompleteBadge = document.querySelector('#stageCompleteBadge')
 const resetButton = document.querySelector('#resetButton')
 const nextButton = document.querySelector('#nextButton')
-const spots = document.querySelectorAll('.difference-spot')
 const comparePrint = document.querySelector('#comparePrint')
+const spotsLayer = document.querySelector('#spotsLayer')
+const stageTitle = document.querySelector('#stageTitle')
+const originalImage = document.querySelector('#originalImage')
+const compareImage = document.querySelector('#compareImage')
+const finalScreen = document.querySelector('#finalScreen')
+const finalStageOneScore = document.querySelector('#finalStageOneScore')
+const finalStageTwoScore = document.querySelector('#finalStageTwoScore')
+const finalTotalScore = document.querySelector('#finalTotalScore')
+const finalEvaluation = document.querySelector('#finalEvaluation')
+const finalResultStatus = document.querySelector('#finalResultStatus')
+const finalFailureReason = document.querySelector('#finalFailureReason')
+const finalHomeButton = document.querySelector('#finalHomeButton')
+const finalRestartButton = document.querySelector('#finalRestartButton')
 
 startButton.addEventListener('click', () => {
   startScreen.hidden = true
   gamePanel.hidden = false
-  beginGame()
-})
-
-spots.forEach((spot) => {
-  spot.addEventListener('click', (event) => {
-    event.stopPropagation()
-
-    if (!isGameActive) {
-      setMessage('다시 시작을 눌러 주세요.', 'warning')
-      return
-    }
-
-    const id = Number(spot.dataset.id)
-
-    if (foundIds.has(id)) {
-      return
-    }
-
-    const foundItem = differences.find((item) => item.id === id)
-
-    foundIds.add(id)
-    score += foundItem.points
-    spot.classList.add('found')
-    playCorrectSound()
-
-    const remaining = differences.length - foundIds.size
-    remainingCount.textContent = remaining
-    scoreElement.textContent = score
-    setMessage(`${foundItem.label} 발견! +${foundItem.points}점`)
-
-    if (remaining === 0) {
-      completeGame()
-      setMessage(`지문 감정 완료! 모든 특징점을 찾았습니다. 최종 점수: ${score}점`)
-    }
-  })
+  beginGame(0)
 })
 
 comparePrint.addEventListener('click', (event) => {
@@ -206,13 +242,66 @@ comparePrint.addEventListener('click', (event) => {
   wrongCount += 1
 
   if (wrongCount >= 5) {
-    failGame('실패. 다시 시작해 주세요.')
+    failGame('실패. 다시 시작해 주세요.', '오답 5회')
     return
   }
 
   playWarningSound()
   setMessage('다시 선택해 주세요.', 'warning')
 })
+
+function getCurrentStage() {
+  return stages[currentStageIndex]
+}
+
+function renderDifferenceSpots() {
+  const stage = getCurrentStage()
+  spotsLayer.innerHTML = stage.differences.map((item) => `
+    <button
+      class="difference-spot"
+      style="left: ${item.x}%; top: ${item.y}%;"
+      data-id="${item.id}"
+      aria-label="${item.label}"
+    ></button>
+  `).join('')
+
+  spotsLayer.querySelectorAll('.difference-spot').forEach((spot) => {
+    spot.addEventListener('click', handleDifferenceClick)
+  })
+}
+
+function handleDifferenceClick(event) {
+  event.stopPropagation()
+
+  if (!isGameActive) {
+    setMessage('다시 시작을 눌러 주세요.', 'warning')
+    return
+  }
+
+  const stage = getCurrentStage()
+  const spot = event.currentTarget
+  const id = Number(spot.dataset.id)
+
+  if (foundIds.has(id)) {
+    return
+  }
+
+  const foundItem = stage.differences.find((item) => item.id === id)
+
+  foundIds.add(id)
+  score += foundItem.points
+  spot.classList.add('found')
+  playCorrectSound()
+
+  const remaining = stage.differences.length - foundIds.size
+  remainingCount.textContent = remaining
+  scoreElement.textContent = score
+  setMessage(`${foundItem.label} 발견! +${foundItem.points}점`)
+
+  if (remaining === 0) {
+    completeStage()
+  }
+}
 
 function setMessage(text, variant = 'default') {
   message.textContent = text
@@ -231,21 +320,38 @@ function showMissMarker(x, y) {
   }, 900)
 }
 
-function beginGame() {
+function beginGame(stageIndex = currentStageIndex) {
+  currentStageIndex = stageIndex
+
+  if (stageIndex === 0) {
+    stageScores = Array(stages.length).fill(0)
+  }
+
+  const stage = getCurrentStage()
+
   foundIds = new Set()
   score = 0
-  timeLeft = GAME_DURATION
+  timeLeft = stage.duration
   wrongCount = 0
   isGameActive = true
+  isStageComplete = false
+  stageScores[stageIndex] = 0
+
+  finalScreen.hidden = true
+  gamePanel.hidden = false
+  nextButton.hidden = false
+  stageTitle.textContent = stage.title
+  originalImage.src = stage.originalImage
+  compareImage.src = stage.compareImage
   scoreElement.textContent = score
-  remainingCount.textContent = differences.length
+  remainingCount.textContent = stage.differences.length
   timerCount.textContent = `${timeLeft}초`
   setMessage('비교 지문에서 다른 부분을 눌러보세요.')
-  stageCompleteBadge.textContent = '1단계 종료'
+  stageCompleteBadge.textContent = stage.successLabel
   stageCompleteBadge.classList.remove('is-failure')
   stageCompleteBadge.hidden = true
-  spots.forEach((spot) => spot.classList.remove('found'))
   comparePrint.querySelectorAll('.miss-marker').forEach((marker) => marker.remove())
+  renderDifferenceSpots()
   startTimer()
 }
 
@@ -258,7 +364,7 @@ function startTimer() {
     timerCount.textContent = `${timeLeft}초`
 
     if (timeLeft <= 0) {
-      failGame('시간 초과. 다시 시작해 주세요.')
+      failGame('시간 초과. 다시 시작해 주세요.', '시간 초과')
       return
     }
 
@@ -266,17 +372,79 @@ function startTimer() {
   }, 1000)
 }
 
-function completeGame() {
+function completeStage() {
+  const stage = getCurrentStage()
+
   isGameActive = false
+  isStageComplete = true
+  stageScores[currentStageIndex] = score
   stopTimer()
-  stageCompleteBadge.textContent = '1단계 종료'
   stageCompleteBadge.classList.remove('is-failure')
   stageCompleteBadge.hidden = false
+
+  if (currentStageIndex === stages.length - 1) {
+    stageCompleteBadge.textContent = '전체 게임 종료'
+    nextButton.hidden = true
+    showFinalScreen()
+    return
+  }
+
+  stageCompleteBadge.textContent = stage.successLabel
+  setMessage(`지문 감정 완료! 모든 특징점을 찾았습니다. 최종 점수: ${score}점`)
 }
 
-function failGame(text) {
+function getFinalResult(forceRetry = false) {
+  const averageScore = Math.round(
+    stageScores.reduce((total, stageScore) => total + stageScore, 0) / stages.length,
+  )
+  const evaluation = forceRetry ? '재도전 필요' : getEvaluation(averageScore)
+
+  return { averageScore, evaluation }
+}
+
+function showFinalScreen({ failed = false, reason = '' } = {}) {
+  const { averageScore, evaluation } = getFinalResult(failed)
+
+  finalResultStatus.textContent = failed ? '실패' : '성공'
+  finalResultStatus.classList.toggle('is-failure', failed)
+  finalFailureReason.textContent = failed ? `실패 사유: ${reason}` : '실패 사유: -'
+  finalFailureReason.hidden = !failed
+  finalStageOneScore.textContent = `${stageScores[0]}점`
+  finalStageTwoScore.textContent = `${stageScores[1]}점`
+  finalTotalScore.textContent = `${averageScore}점`
+  finalEvaluation.textContent = `평가: ${evaluation}`
+  gamePanel.hidden = true
+  finalScreen.hidden = false
+}
+
+function getEvaluation(averageScore) {
+  if (averageScore >= 90) {
+    return '우수'
+  }
+
+  if (averageScore >= 70) {
+    return '양호'
+  }
+
+  if (averageScore >= 50) {
+    return '보통'
+  }
+
+  return '재도전 필요'
+}
+
+function failGame(text, reason = '실패') {
   isGameActive = false
+  isStageComplete = false
   stopTimer()
+
+  if (currentStageIndex === stages.length - 1) {
+    stageScores[currentStageIndex] = score
+    playFailureSound()
+    showFinalScreen({ failed: true, reason })
+    return
+  }
+
   stageCompleteBadge.textContent = '실패'
   stageCompleteBadge.classList.add('is-failure')
   stageCompleteBadge.hidden = false
@@ -343,9 +511,34 @@ function playTickSound() {
 }
 
 resetButton.addEventListener('click', () => {
-  beginGame()
+  beginGame(currentStageIndex)
 })
 
 nextButton.addEventListener('click', () => {
-  setMessage('다음 게임은 준비 중입니다.', 'warning')
+  if (isGameActive || !isStageComplete) {
+    setMessage('현재 단계를 먼저 완료해 주세요.', 'warning')
+    return
+  }
+
+  if (currentStageIndex < stages.length - 1) {
+    beginGame(currentStageIndex + 1)
+    return
+  }
+
+  setMessage('전체 게임이 종료되었습니다.', 'warning')
+})
+
+finalHomeButton.addEventListener('click', () => {
+  stopTimer()
+  finalScreen.hidden = true
+  gamePanel.hidden = true
+  startScreen.hidden = false
+  currentStageIndex = 0
+  stageScores = Array(stages.length).fill(0)
+})
+
+finalRestartButton.addEventListener('click', () => {
+  finalScreen.hidden = true
+  startScreen.hidden = true
+  beginGame(0)
 })
