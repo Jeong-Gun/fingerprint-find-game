@@ -1,0 +1,163 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #17201a;
+  background: #e7ece8;
+}
+
+button {
+  font: inherit;
+}
+
+.game-shell {
+  min-height: 100vh;
+  padding: 32px 20px;
+  display: grid;
+  place-items: center;
+  gap: 24px;
+}
+
+.hero {
+  width: min(760px, 100%);
+  text-align: center;
+  padding: 28px 20px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #287057;
+}
+
+h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin: 16px auto 0;
+  max-width: 560px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: #48564e;
+}
+
+.primary-button {
+  margin-top: 24px;
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-weight: 700;
+  color: white;
+  background: #287057;
+  cursor: pointer;
+}
+
+.primary-button:hover {
+  background: #1f5b47;
+}
+
+.game-panel {
+  width: min(980px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #c6d1c9;
+  border-radius: 8px;
+  background: white;
+}
+
+.fingerprint-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.print-card {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c6d1c9;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at center, transparent 0 24%, rgba(40, 112, 87, 0.2) 25% 26%, transparent 27% 100%),
+    repeating-radial-gradient(circle at center, #f7faf8 0 8px, #d5ded8 9px 11px, #f7faf8 12px 18px);
+  color: #17201a;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  h1 {
+    font-size: 32px;
+  }
+
+  .fingerprint-board {
+    grid-template-columns: 1fr;
+  }
+}.print-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.print-card span {
+  position: relative;
+  z-index: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.difference-spot {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(40, 112, 87, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+
+.difference-spot:hover {
+  border-color: #287057;
+  background: rgba(40, 112, 87, 0.16);
+}
+
+.difference-spot.found {
+  border-color: #d94a38;
+  background: rgba(217, 74, 56, 0.22);
+}
+
+.difference-spot.found::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 999px;
+  background: #d94a38;
+}
+
+.message {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #c6d1c9;
+  border-radius: 8px;
+  background: white;
+  color: #48564e;
+  text-align: center;
+  font-weight: 700;
+}
